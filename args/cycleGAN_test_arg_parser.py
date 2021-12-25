@@ -24,3 +24,5 @@ class CycleGANTestArgParser(BaseArgParser):
             '--ckpt_dir', type=str, default=None, help='Path to model ckpt.')
         self.parser.add_argument(
             '--model_name', type=str, choices=('generator_A2B', 'generator_B2A'), default='generator_A2B', help='Name of model to load.')
+        self.parser.add_argument(
+            '--use_wav_filename', action="store_true", help='Use filenames instead of order for output wav files. ')

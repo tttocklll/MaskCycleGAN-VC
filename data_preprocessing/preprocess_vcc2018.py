@@ -29,12 +29,14 @@ def normalize_mel(wavspath):
     vocoder = torch.hub.load('descriptinc/melgan-neurips', 'load_melgan')
 
     mel_list = list()
+    filename_list = list()
     for wavpath in tqdm(wav_files, desc='Preprocess wav to mel'):
         wav_orig, _ = librosa.load(wavpath, sr=SAMPLING_RATE, mono=True)
         spec = vocoder(torch.tensor([wav_orig]))
 
         if spec.shape[-1] >= 64:    # training sample consists of 64 randomly cropped frames
             mel_list.append(spec.cpu().detach().numpy()[0])
+            filename_list.append(os.path.basename(wavpath))
 
     mel_concatenated = np.concatenate(mel_list, axis=1)
     mel_mean = np.mean(mel_concatenated, axis=1, keepdims=True)
@@ -46,7 +48,7 @@ def normalize_mel(wavspath):
         app = (mel - mel_mean) / mel_std
         mel_normalized.append(app)
 
-    return mel_normalized, mel_mean, mel_std
+    return mel_normalized, mel_mean, mel_std, filename_list
 
 
 def save_pickle(variable, fileName):
@@ -70,7 +72,7 @@ def preprocess_dataset(data_path, speaker_id, cache_folder='./cache/'):
 
     print(f"Preprocessing data for speaker: {speaker_id}.")
 
-    mel_normalized, mel_mean, mel_std = normalize_mel(data_path)
+    mel_normalized, mel_mean, mel_std, filename_list = normalize_mel(data_path)
 
     if not os.path.exists(os.path.join(cache_folder, speaker_id)):
         os.makedirs(os.path.join(cache_folder, speaker_id))
@@ -81,6 +83,10 @@ def preprocess_dataset(data_path, speaker_id, cache_folder='./cache/'):
 
     save_pickle(variable=mel_normalized,
                 fileName=os.path.join(cache_folder, speaker_id, f"{speaker_id}_normalized.pickle"))
+    
+    if args.save_filename:
+        np.save(os.path.join(cache_folder, speaker_id, f"{speaker_id}_filename.npy"),
+                filename_list)
 
     print(f"Preprocessed and saved data for speaker: {speaker_id}.")
 
@@ -93,6 +99,8 @@ if __name__ == '__main__':
                         help='Directory holding preprocessed VCC2018 dataset.')
     parser.add_argument('--speaker_ids', nargs='+', type=str, default=['VCC2SM3', 'VCC2TF1'],
                         help='Source speaker id from VCC2018.')
+    parser.add_argument('--save_filename', action="store_true",
+                        help="Save filenames of input files")
 
     args = parser.parse_args()
 
